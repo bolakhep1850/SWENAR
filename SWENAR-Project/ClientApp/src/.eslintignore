@@ -1,0 +1,5 @@
+.gitignore
+.npmrc
+build
+node_modules
+npm-debug.log

@@ -1,0 +1,37 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CustomerForm tests shows customer forms with things rendered 1`] = `
+<div>
+  <form>
+    <label
+      htmlFor="Name"
+    >
+      Enter name: 
+    </label>
+    <input
+      id="Name"
+      name="Name"
+      onChange={[Function]}
+      type="text"
+    />
+    <label
+      htmlFor="Number"
+    >
+      Enter customer number:
+    </label>
+    <input
+      id="number"
+      name="number"
+      onChange={[Function]}
+      type="text"
+    />
+  </form>
+  <div>
+    <button
+      onClick={[Function]}
+    >
+      Add
+    </button>
+  </div>
+</div>
+`;

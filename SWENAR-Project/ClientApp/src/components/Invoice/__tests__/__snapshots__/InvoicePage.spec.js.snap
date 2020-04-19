@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Invoice Page tests shows customer forms with things rendered 1`] = `
+<ExcelLoad>
+  <div>
+    <form
+      action="https://localhost:44375/api/Invoice/Load"
+      enctype="multipart/form-data"
+      method="post"
+    >
+      <input
+        className="form-control"
+        id="excel-file"
+        name="excelFile"
+        type="file"
+      />
+      <button
+        type="submit"
+      >
+        Submit
+      </button>
+    </form>
+  </div>
+</ExcelLoad>
+`;
