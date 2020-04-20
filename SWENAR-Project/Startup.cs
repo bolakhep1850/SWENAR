@@ -15,6 +15,7 @@ using SWENAR.Services;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.OpenApi.Models;
 using SWENAR.SeedCommon;
+using SWENAR.Repository;
 
 namespace SWENAR
 {
@@ -48,6 +49,7 @@ namespace SWENAR
             services.AddControllersWithViews();
             services.AddRazorPages();
             services.AddTransient<IEmailSender, EmailSender>();
+            services.AddScoped<ICustomerRepository, CustomerRepository>();
 
             // Register the Swagger generator, defining 1 or more Swagger documents
             services.AddSwaggerGen(c =>

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SWENAR.Data;
 using SWENAR.Models;
+using SWENAR.Repository;
 using SWENAR.Validation;
 using SWENAR.ViewModels;
 
@@ -15,10 +16,10 @@ namespace SWENAR.Controllers
     [ApiController]
     public class CustomerController : ControllerBase
     {
-        private readonly SWENARDBContext _db;
-        public CustomerController(SWENARDBContext db)
+        private readonly ICustomerRepository _repo;
+        public CustomerController(ICustomerRepository repo)
         {
-            this._db = db;
+            this._repo = repo;
         }
 
         /// <summary>
@@ -28,9 +29,7 @@ namespace SWENAR.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Customer>>> Get()
         {
-            var customers = await _db.Customers
-                .OrderBy(a => -a.Id).ToListAsync();
-            return customers;
+            return (await _repo.GetAsync()).ToList();
         }
 
         /// <summary>
@@ -41,13 +40,11 @@ namespace SWENAR.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Customer>> Get(int id)
         {
-            var customer = await _db.Customers.FindAsync(id);
-
+            var customer = await _repo.GetAsync(id);
             if (customer is null)
             {
                 return NotFound();
             }
-
             return customer;
         }
 
@@ -60,16 +57,7 @@ namespace SWENAR.Controllers
         [ValidateModel]
         public async Task<ActionResult<Customer>> Create(CustomerCreateVm vm)
         {
-
-            var customer = new Customer()
-            {
-                Name = vm.Name,
-                Number = vm.Number
-            };
-
-            _db.Customers.Add(customer);
-
-            await _db.SaveChangesAsync();
+            var customer = await _repo.CreateAsync(vm);
             return CreatedAtAction(nameof(Get), new { id = customer.Id }, customer);
         }
 
@@ -88,17 +76,7 @@ namespace SWENAR.Controllers
                 return BadRequest();
             }
 
-            var customer = await _db.Customers.FindAsync(vm.Id);
-
-            if (customer is null)
-            {
-                return NotFound();
-            }
-
-            customer.Name = vm.Name;
-            customer.Number = vm.Number;
-
-            await _db.SaveChangesAsync();
+            await _repo.UpdateAsync(vm); 
             return Ok();
         }
 
@@ -108,18 +86,9 @@ namespace SWENAR.Controllers
         /// <param name="id">Customer Id</param>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        public async Task<ActionResult<Customer>> Delete(int id)
+        public async Task<ActionResult<bool>> Delete(int id)
         {
-            var customer = await _db.Customers.FindAsync(id);
-
-            if (customer is null)
-            {
-                return NotFound();
-            }
-
-            _db.Customers.Remove(customer);
-            await _db.SaveChangesAsync();
-            return customer;
+            return await _repo.DeleteAsync(id);
         }
     }
 }
