@@ -50,6 +50,7 @@ namespace SWENAR
             services.AddRazorPages();
             services.AddTransient<IEmailSender, EmailSender>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
+            services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 
             // Register the Swagger generator, defining 1 or more Swagger documents
             services.AddSwaggerGen(c =>

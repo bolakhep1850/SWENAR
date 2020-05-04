@@ -10,9 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using SWENAR.Data;
 using SWENAR.Models;
+using SWENAR.Repository;
 using SWENAR.Validation;
 using SWENAR.ViewModels;
 using static SWENAR.Helpers.FileHelpers;
+using LaYumba.Functional;
+using static LaYumba.Functional.F;
 
 namespace SWENAR.Controllers
 {
@@ -22,10 +25,15 @@ namespace SWENAR.Controllers
     public class InvoiceController : ControllerBase
     {
         private readonly SWENARDBContext _db;
+        private readonly IInvoiceRepository _repo;
         private readonly IWebHostEnvironment _env;
 
-        public InvoiceController(SWENARDBContext db, IWebHostEnvironment env)
+        public InvoiceController(
+            IInvoiceRepository repo,
+            SWENARDBContext db,
+            IWebHostEnvironment env)
         {
+            this._repo = repo;
             this._db = db;
             this._env = env;
         }
@@ -36,11 +44,9 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Invoice>>> Get()
-        {
-            var invoices = await _db.Invoices
-                .OrderBy(a => -a.Id).ToListAsync();
-            return invoices;
-        }
+            => (await _repo.GetAsync())
+            .Match(() => new List<Invoice>(), (inv) => inv.ToList());
+
 
         /// <summary>
         /// Method to get all invoice details
@@ -48,31 +54,9 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet("[action]")]
         public async Task<ActionResult<IEnumerable<InvoiceDetailVm>>> GetInvoiceDetails()
-        {
-            var invoices = await _db.Invoices
-                .Include(i => i.Customer)
-                .Include(i => i.Attachments)
-                .OrderBy(i => -i.Id)
-                .Select(i => new InvoiceDetailVm()
-                {
-                    Id = i.Id,
-                    InvoiceNo = i.InvoiceNumber,
-                    CustomerId = i.CustomerId,
-                    CustomerNumber = i.Customer.Number,
-                    CustomerName = i.Customer.Name,
-                    Amount = i.Amount,
-                    InvoiceDate = i.InvoiceDate,
-                    DueDate = i.DueDate,
-                    Status = i.Status.ToString(),
-                    Attachments = i.Attachments == null ? null
-                        : i.Attachments.Select(a => new AttachmentDetailVm()
-                        {
-                            Id = a.Id,
-                            Name = a.File.Name
-                        }).ToList()
-                }).ToListAsync();
-            return invoices;
-        }
+            => (await _repo.GetInvoiceDetailsAsync())
+            .Match(() => new List<InvoiceDetailVm>(),
+                (invoices) => invoices);
 
         /// <summary>
         /// Method to get a invoice 
@@ -81,16 +65,9 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Invoice>> Get(int id)
-        {
-            var invoice = await _db.Invoices.FindAsync(id);
+            => (await _repo.GetAsync(id))
+            .Match<ActionResult<Invoice>>(() => NotFound(), (inv) => inv);
 
-            if (invoice is null)
-            {
-                return NotFound();
-            }
-
-            return invoice;
-        }
 
         /// <summary>
         /// Method to get all invoice detail
@@ -98,31 +75,9 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet("[action]/{id}")]
         public async Task<ActionResult<InvoiceDetailVm>> GetInvoiceDetail(int id)
-        {
-            var invoice = await _db.Invoices
-                .Include(i => i.Customer)
-                .Include(i => i.Attachments)
-                .OrderBy(i => -i.Id)
-                .Select(i => new InvoiceDetailVm()
-                {
-                    Id = i.Id,
-                    InvoiceNo = i.InvoiceNumber,
-                    CustomerId = i.CustomerId,
-                    CustomerNumber = i.Customer.Number,
-                    CustomerName = i.Customer.Name,
-                    Amount = i.Amount,
-                    InvoiceDate = i.InvoiceDate,
-                    DueDate = i.DueDate,
-                    Status = i.Status.ToString(),
-                    Attachments = i.Attachments == null ? null
-                        : i.Attachments.Select(a => new AttachmentDetailVm()
-                        {
-                            Id = a.Id,
-                            Name = a.File.Name
-                        }).ToList()
-                }).SingleOrDefaultAsync(i => i.Id == id);
-            return invoice;
-        }
+            => (await _repo.GetInvoiceDetailAsync(id))
+            .Match<ActionResult<InvoiceDetailVm>>(() => NotFound(),
+                (inv) => inv);
 
         /// <summary>
         /// Method to get a invoices for a customer by customer id
@@ -131,26 +86,9 @@ namespace SWENAR.Controllers
         /// <returns>List of invoices for a customer</returns>
         [HttpGet("[action]/{customerid}")]
         public async Task<ActionResult<List<InvoiceDetailVm>>> GetInvoiceByCustomerId(int customerId)
-        {
-            var invoices = await _db.Invoices
-                .Include(inv => inv.Customer)
-                .Where(inv => inv.CustomerId == customerId)
-                .Select(inv => new InvoiceDetailVm()
-                {
-                    Id = inv.Id,
-                    Amount = inv.Amount,
-                    CustomerId = inv.Customer.Id,
-                    CustomerName = inv.Customer.Name,
-                    CustomerNumber = inv.Customer.Number,
-                    DueDate = inv.DueDate,
-                    InvoiceDate = inv.InvoiceDate,
-                    InvoiceNo = inv.InvoiceNumber,
-                    Status = inv.Status.ToString()
-                })
-                .ToListAsync();
-
-            return invoices;
-        }
+            => (await _repo.GetInvoiceByCustomerIdAsync(customerId))
+                .Match(() => new List<InvoiceDetailVm>(),
+                (invoices) => invoices);
 
         /// <summary>
         /// Method to get a invoices for a customer by customer number
@@ -159,26 +97,9 @@ namespace SWENAR.Controllers
         /// <returns>List of invoices for a customer</returns>
         [HttpGet("[action]/{customernumber}")]
         public async Task<ActionResult<List<InvoiceDetailVm>>> GetInvoiceByCustomerNumber(string customerNumber)
-        {
-            var invoices = await _db.Invoices
-                .Include(inv => inv.Customer)
-                .Where(inv => inv.Customer.Number == customerNumber)
-                .Select(inv => new InvoiceDetailVm()
-                {
-                    Id = inv.Id,
-                    Amount = inv.Amount,
-                    CustomerId = inv.Customer.Id,
-                    CustomerName = inv.Customer.Name,
-                    CustomerNumber = inv.Customer.Number,
-                    DueDate = inv.DueDate,
-                    InvoiceDate = inv.InvoiceDate,
-                    InvoiceNo = inv.InvoiceNumber,
-                    Status = inv.Status.ToString()
-                })
-                .ToListAsync();
-
-            return invoices;
-        }
+            => (await _repo.GetInvoiceByCustomerNumberAsync(customerNumber))
+                .Match(() => new List<InvoiceDetailVm>(),
+                (invoices) => invoices);
 
         /// <summary>
         /// Method to create a invoice in database
@@ -188,22 +109,8 @@ namespace SWENAR.Controllers
         [HttpPost]
         [ValidateModel]
         public async Task<ActionResult<Invoice>> Create(InvoiceCreateVm vm)
-        {
-
-            var invoice = new Invoice()
-            {
-                CustomerId = vm.CustomerId,
-                InvoiceNumber = vm.InvoiceNumber,
-                Amount = vm.Amount,
-                InvoiceDate = Convert.ToDateTime(vm.InvoiceDate),
-                DueDate = Convert.ToDateTime(vm.DueDate)
-            };
-
-            _db.Invoices.Add(invoice);
-
-            await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(Get), new { id = invoice.Id }, invoice);
-        }
+            => (await _repo.CreateAsync(vm))
+            .Match<ActionResult<Invoice>>(() => BadRequest(), (inv) => CreatedAtAction(nameof(Get), new { id = inv.Id }, inv));
 
         /// <summary>
         /// Method to update an existing Invoice
@@ -214,29 +121,9 @@ namespace SWENAR.Controllers
         [HttpPut("{id}")]
         [ValidateModel]
         public async Task<IActionResult> Update(int id, InvoiceEditVm vm)
-        {
-            if (id != vm.Id)
-            {
-                return BadRequest();
-            }
-
-            var invoice = await _db.Invoices.FindAsync(vm.Id);
-
-            if (invoice is null)
-            {
-                return NotFound();
-            }
-
-            invoice.CustomerId = vm.CustomerId;
-            invoice.InvoiceNumber = vm.InvoiceNumber;
-            invoice.Amount = vm.Amount;
-            invoice.InvoiceDate = Convert.ToDateTime(vm.InvoiceDate);
-            invoice.DueDate = Convert.ToDateTime(vm.DueDate);
-            invoice.Status = vm.Status ?? invoice.Status;
-
-            await _db.SaveChangesAsync();
-            return Ok();
-        }
+            => (await _repo.UpdateAsync(vm))
+                .Match(() => NotFound(),
+                (isUpdated) => isUpdated ? NoContent() : StatusCode(500));
 
         /// <summary>
         /// Method to delete an existing Invoice 
@@ -245,18 +132,10 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpDelete("{id}")]
         public async Task<ActionResult<Invoice>> Delete(int id)
-        {
-            var invoice = await _db.Invoices.FindAsync(id);
-
-            if (invoice is null)
-            {
-                return NotFound();
-            }
-
-            _db.Invoices.Remove(invoice);
-            await _db.SaveChangesAsync();
-            return invoice;
-        }
+            => (await _repo.DeleteAsync(id))
+                .Match<ActionResult<Invoice>>(
+                    () => NotFound(),
+                    (deleted) => deleted ? Ok() : StatusCode(500));
 
         /// <summary>
         /// Loads excel file with invoices to the database
@@ -413,6 +292,16 @@ namespace SWENAR.Controllers
             }
 
             return invoices;
+        }
+
+        private static Either<bool, InvoiceEditVm> EditVmIsValid(int id, InvoiceEditVm vm)
+        {
+            if (id != vm.Id)
+            {
+                return false;
+            }
+
+            return vm;
         }
     }
 
