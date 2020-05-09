@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using LaYumba.Functional;
+using static LaYumba.Functional.F;
+using Microsoft.EntityFrameworkCore;
 using SWENAR.Data;
 using SWENAR.Models;
 using SWENAR.ViewModels;
@@ -18,7 +20,7 @@ namespace SWENAR.Repository
             this._db = db;
         }
 
-        public async Task<Customer> CreateAsync(CustomerCreateVm createVm)
+        public async Task<Option<Customer>> CreateAsync(CustomerCreateVm createVm)
         {
             var customer = new Customer()
             {
@@ -27,49 +29,62 @@ namespace SWENAR.Repository
             };
 
             _db.Customers.Add(customer);
-            await _db.SaveChangesAsync();
-            return customer;
+            if (await _db.SaveChangesAsync() > 0) return Some(customer);
+            return None;
         }
 
-        public async Task<bool> DeleteAsync(int customerId)
+        public async Task<Option<bool>> DeleteAsync(int customerId)
         {
             var customer = await _db.Customers.FindAsync(customerId);
 
             if (customer is null)
             {
-                return false;
+                return None;
             }
 
             _db.Customers.Remove(customer);
-            await _db.SaveChangesAsync();
-            return true;
+            if (await _db.SaveChangesAsync() > 0) return Some(true);
+            return Some(false);
         }
 
-        public async Task<IEnumerable<Customer>> GetAsync()
+        public async Task<Option<List<Customer>>> GetAsync()
         {
-            return await _db.Customers
+            var customers = await _db.Customers
                 .OrderBy(a => -a.Id).ToListAsync();
+
+            if (!customers.Any())
+            {
+                return None;
+            }
+
+            return Some(customers);
         }
 
-        public async Task<Customer> GetAsync(int id)
+        public async Task<Option<Customer>> GetAsync(int id)
         {
-            return await _db.Customers.FindAsync(id);
+            var item = await _db.Customers.FindAsync(id);
+            if (item is null)
+            {
+                return None;
+            }
 
+            return Some(item);
         }
 
-        public async Task<bool> UpdateAsync(CustomerEditVm editVm)
+        public async Task<Option<bool>> UpdateAsync(CustomerEditVm editVm)
         {
             var customer = await _db.Customers.FindAsync(editVm.Id);
 
-            if (customer != null)
+            if (customer is null)
             {
-                customer.Name = editVm.Name;
-                customer.Number = editVm.Number;
-
-                return await _db.SaveChangesAsync() >= 0;
+                return None;
             }
 
-            return false;
+            customer.Name = editVm.Name;
+            customer.Number = editVm.Number;
+
+            if (await _db.SaveChangesAsync() > 0) return Some(true);
+            return Some(false);
         }
     }
 }

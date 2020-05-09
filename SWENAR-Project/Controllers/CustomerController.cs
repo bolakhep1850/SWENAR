@@ -28,9 +28,7 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Customer>>> Get()
-        {
-            return (await _repo.GetAsync()).ToList();
-        }
+            => (await _repo.GetAsync()).Match(() => new List<Customer>(), customers => customers);
 
         /// <summary>
         /// Method to get a customer 
@@ -39,14 +37,7 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<Customer>> Get(int id)
-        {
-            var customer = await _repo.GetAsync(id);
-            if (customer is null)
-            {
-                return NotFound();
-            }
-            return customer;
-        }
+            => (await _repo.GetAsync(id)).Match<ActionResult<Customer>>(() => NotFound(), (customer) => customer);
 
         /// <summary>
         /// Method to create a customer in database
@@ -56,10 +47,9 @@ namespace SWENAR.Controllers
         [HttpPost]
         [ValidateModel]
         public async Task<ActionResult<Customer>> Create(CustomerCreateVm vm)
-        {
-            var customer = await _repo.CreateAsync(vm);
-            return CreatedAtAction(nameof(Get), new { id = customer.Id }, customer);
-        }
+            => (await _repo.CreateAsync(vm)).Match<ActionResult<Customer>>(
+                () => BadRequest(),
+                (customer) => CreatedAtAction(nameof(Get), new { id = customer.Id }, customer));
 
         /// <summary>
         /// Method to update an existing customer
@@ -70,15 +60,8 @@ namespace SWENAR.Controllers
         [HttpPut("{id}")]
         [ValidateModel]
         public async Task<IActionResult> Update(int id, CustomerEditVm vm)
-        {
-            if (id != vm.Id)
-            {
-                return BadRequest();
-            }
-
-            await _repo.UpdateAsync(vm); 
-            return Ok();
-        }
+            => (await _repo.UpdateAsync(vm)).Match(() => NotFound(),
+                (isUpdated) => isUpdated ? NoContent() : StatusCode(500));
 
         /// <summary>
         /// Method to delete an existing customer 
@@ -87,8 +70,7 @@ namespace SWENAR.Controllers
         /// <returns></returns>
         [HttpDelete("{id}")]
         public async Task<ActionResult<bool>> Delete(int id)
-        {
-            return await _repo.DeleteAsync(id);
-        }
+            => (await _repo.DeleteAsync(id)).Match(() => NotFound(),
+                (isDeleted) => isDeleted ? Ok() : StatusCode(500));
     }
 }
